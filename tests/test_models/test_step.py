@@ -1,51 +1,15 @@
-import os
-import tempfile
-from re import L
-from typing import List
-from uuid import uuid4
+from typing import Callable
 
-from pypes.models import Resource, Step
+from pypes.models import Step
 
 
-def create_test_resource(content: str = "", exists=True):
-    if not exists:
-        return Resource(path="i/hopefully/dont/exist")
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        if content:
-            f.write(content.encode())
-        return Resource(path=f.name)
-
-
-def create_test_step(should_succeed: bool = True):
-    if should_succeed:
-        return Step(
-            name="should succeed",
-            status="queued",
-            inputs=[create_test_resource("abc"), create_test_resource("def")],
-            outputs=[create_test_resource()],
-            command="cat {inputs[0]} {inputs[1]} > {outputs[0]}",
-        )
-    return Step(name="should fail", command="false")
-
-
-def delete_resource(resource: Resource):
-    if resource.exists:
-        os.remove(resource.path)
-
-
-def cleanup_temp_files(steps: List[Step]):
-    for step in steps:
-        for r in step.inputs:
-            delete_resource(r)
-        for r in step.outputs:
-            delete_resource(r)
-
-
-def test_step_create():
+def test_step_create(create_test_step: Callable[..., Step]):
     assert create_test_step() is not None
 
 
-def test_step_run_success():
+def test_step_run_success(
+    create_test_step: Callable[..., Step], cleanup_temp_files: Callable[..., None]
+):
     step = create_test_step()
     step.run()
     output_content = step.outputs[0].content
@@ -53,8 +17,37 @@ def test_step_run_success():
     assert output_content and output_content.decode() == "abcdef"
 
 
-def test_step_run_failure():
+def test_step_run_failure(
+    create_test_step: Callable[..., Step], cleanup_temp_files: Callable[..., None]
+):
     step = create_test_step(should_succeed=False)
     step.run()
     cleanup_temp_files([step])
     assert step.status == "error"
+
+
+def test_step_stdout():
+    step = Step(
+        name="test step",
+        command="echo test",
+    )
+    step.run()
+    assert step.stdout and step.stdout.strip() == "test"
+
+
+def test_step_stderr():
+    step = Step(
+        name="test step",
+        command=">&2 echo test",
+    )
+    step.run()
+    assert step.stderr and step.stderr.strip() == "test"
+
+
+def test_step_returncode():
+    step = Step(
+        name="test step",
+        command="echo test",
+    )
+    step.run()
+    assert step.returncode == 0

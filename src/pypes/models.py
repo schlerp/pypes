@@ -22,13 +22,10 @@ class Resource(BaseModel):
         if self.exists:
             with open(self.path, "rb") as f:
                 return f.read(1024)
-        return None
+        return None  # pragma: no cover
 
     def __str__(self):
         return self.path
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class Step(BaseModel):
@@ -66,28 +63,42 @@ class Step(BaseModel):
     def stdout(self) -> Union[str, None]:
         if self.status in ("finished", "error"):
             return self._stdout
-        return None
+        return None  # pragma: no cover
 
     @property
     def stderr(self) -> Union[str, None]:
         if self.status in ("finished", "error"):
             return self._stderr
-        return None
+        return None  # pragma: no cover
 
     @property
     def returncode(self) -> Union[int, None]:
         if self.status in ("finished", "error"):
             return self._returncode
-        return None
+        return None  # pragma: no cover
 
 
-class Job(BaseModel):
+class Pipeline(BaseModel):
     id: UUID = Field(default_factory=uuid4)
+    name: str
     owner: str
-    created: datetime = Field(default_factory=datetime.utcnow)
     working_dir: str
-    steps: List[Step]
+    status: Status = "queued"
+    run_stderr: str = ""
+    run_stdout: str = ""
+    steps: List[Step] = Field()
+    created: datetime = Field(default_factory=datetime.utcnow)
 
-    @property
-    def status(self):
-        return all(step.status not in ("queued", "running") for step in self.steps)
+    def _update_run(self, step: Step):
+        self.run_stdout += "\n=== {} ===\n{}".format(step.name, step.stdout)
+        self.run_stderr += "\n=== {} ===\n{}".format(step.name, step.stderr)
+
+    def run(self) -> bool:
+        for step in self.steps:
+            step.run()
+            self._update_run(step)
+            if step.returncode and step.returncode > 0:
+                self.status = "error"
+                return False
+        self.status = "finished"
+        return True
