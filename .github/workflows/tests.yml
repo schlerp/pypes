@@ -25,9 +25,13 @@ jobs:
         run: |
           coverage run -m pytest
 
-      - name: Upload to codecov.io
-        uses: codecov/codecov-action@v2
-
       - name: Show Coverage report
         run: |
           coverage report --sort=cover
+
+      - name: create coverage xml report
+        run: |
+          coverage xml
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2
