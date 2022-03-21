@@ -2,5 +2,4 @@ pydantic
 networkx
 typer
 names_generator
-tomli
-tomli_w
+jinja2
