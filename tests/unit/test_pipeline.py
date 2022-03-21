@@ -16,7 +16,7 @@ def test_pipeline_get_step_succeed(create_test_step: Callable[..., Step]):
     pipeline = Pipeline(
         name="test pipeline", owner="test", working_dir="/tmp", steps=[step]
     )
-    assert pipeline.get_step(step.id) is not None
+    assert pipeline.get_step(step.name) is not None
 
 
 def test_pipeline_get_step_failure(

@@ -1,12 +1,18 @@
 import subprocess
 
+from jinja2 import Environment
+
 from pypes.dag import get_execution_order, pipeline_to_dag
 from pypes.models import Pipeline, PipelineRun, Step, StepRun
 
 
 def run_step(step: Step) -> StepRun:
-    command_subbed = step.command.format(
-        inputs=step.inputs, outputs=step.outputs, context=step.context
+    command_subbed = (
+        Environment()
+        .from_string(step.command)
+        .render(
+            {"inputs": step.inputs, "outputs": step.outputs, "context": step.context},
+        )
     )
     process = subprocess.Popen(
         command_subbed, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
@@ -16,7 +22,7 @@ def run_step(step: Step) -> StepRun:
     stderr = process.stderr.read().decode() if process.stderr else ""
     returncode = process.returncode
     return StepRun(
-        step_id=step.id,
+        step_name=step.name,
         stdout=stdout,
         stderr=stderr,
         returncode=returncode,
@@ -25,7 +31,7 @@ def run_step(step: Step) -> StepRun:
 
 
 def run_pipeline(pipeline: Pipeline) -> PipelineRun:
-    pipeline_run = PipelineRun(pipeline_id=pipeline.id)
+    pipeline_run = PipelineRun(pipeline_name=pipeline.name)
     dag = pipeline_to_dag(pipeline)
     step_runs = []
     errored = False

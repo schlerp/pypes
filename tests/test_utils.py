@@ -1,62 +1,63 @@
 import os
 import tempfile
-from typing import List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple
 
-from pypes.models import Pipeline, Resource, Step
-
-
-def delete_resource(resource: Resource):
-    if resource.exists:
-        os.remove(resource.path)
+from pypes.models import Pipeline, Step
 
 
-def create_test_resource(content: str = "", exists: bool = True):
+def delete_resource(path: Path) -> None:
+    try:
+        path.unlink()
+    except:
+        pass
+
+
+def create_test_resource(content: str = "", exists: bool = True) -> Path:
     if not exists:
-        return Resource(path="i/hopefully/dont/exist")
+        return Path("i/hopefully/dont/exist")
     with tempfile.NamedTemporaryFile(delete=False) as f:
         if content:
             f.write(content.encode())
-        return Resource(path=f.name)
+        return Path(f.name)
 
 
 def create_test_step(
     should_succeed: bool = True,
-):
+) -> Step:
     if should_succeed:
         return Step(
             name="should succeed",
-            inputs=[create_test_resource("abc"), create_test_resource("def")],
-            outputs=[create_test_resource()],
-            command="cat {inputs[0]} {inputs[1]} > {outputs[0]}",
+            inputs={"a": create_test_resource("abc"), "b": create_test_resource("def")},
+            outputs={"c": create_test_resource()},
+            command="cat {{inputs['a']}} {{inputs['b']}} > {{outputs['c']}}",
         )
     return Step(name="should fail", command="false")
 
 
-def cleanup_temp_files(steps: List[Step]):
+def cleanup_temp_files(steps: List[Step]) -> None:
     for step in steps:
-        for r in step.inputs:
-            delete_resource(r)
-        for r in step.outputs:
-            delete_resource(r)
+        for path in step.inputs.values():
+            delete_resource(path)
+        for path in step.outputs.values():
+            delete_resource(path)
 
 
-def create_cp_step(name: str, source: Resource, target: Resource):
+def create_cp_step(name: str, source: Path, target: Path):
     return Step(
-        id=name,
         name=name,
-        inputs=[source],
-        outputs=[target],
-        command="cp {inputs[0]} {outputs[0]}",
+        inputs={"a": source},
+        outputs={"b": target},
+        command="cp {{ inputs['a'] }} {{ outputs['b'] }}",
     )
 
 
-def create_merge_step(name: str, sources: Tuple[Resource, Resource], target: Resource):
+def create_merge_step(name: str, sources: Tuple[Path, Path], target: Path):
     return Step(
-        id=name,
         name=name,
-        inputs=[*sources],
-        outputs=[target],
-        command="cat {inputs[0]} {inputs[1]} > {outputs[0]}",
+        inputs={"a": sources[0], "b": sources[1]},
+        outputs={"c": target},
+        command="cat {{ inputs['a'] }} {{ inputs['b'] }} > {{ outputs['c'] }}",
     )
 
 

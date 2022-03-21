@@ -10,13 +10,13 @@ def pipeline_to_dag(pipeline: Pipeline) -> networkx.MultiDiGraph:
     edge_list = []
     for source in pipeline.steps:
         for target in pipeline.steps:
-            for output in source.outputs:
-                if source.id == target.id:
+            for output in source.outputs.values():
+                if source.name == target.name:
                     continue
-                for _input in target.inputs:
-                    if output.path == _input.path:
-                        edge_list.append((source.id, target.id, output.path))
-    nodes = [step.id for step in pipeline.steps]
+                for _input in target.inputs.values():
+                    if output == _input:
+                        edge_list.append((source.name, target.name, output))
+    nodes = [step.name for step in pipeline.steps]
     dag = networkx.MultiDiGraph()
     dag.update(edges=edge_list, nodes=nodes)
     if not networkx.is_directed_acyclic_graph(dag):

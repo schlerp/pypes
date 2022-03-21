@@ -12,7 +12,7 @@ Pypes isn't here to reinvent the wheel. As such, all inputs and outputs are file
 
 A pipeline represents the top level object of this application. It has a name, an owner, a working directory and a set of steps. Steps represent an atomic job that usually means they make take resources as input, execute a command, then write out resources as output. A resource is essentially a file at this stage. Resources have a path and a status as to if that path exists. 
 
-Dependency resolution is calculated at run time by representing the pipeline as a Directed Acyclic Graph (DAG), specifically using the topographic sort algorithm. While this is nothing new, it is very effective and allows jobs to be defined in any order, taking away some of that stress and enabling multidisciplinary teams to work togther. The only thing that needs to be agreed upon are the resources used by each job.
+Dependency resolution is calculated at run time by representing the pipeline as a Directed Acyclic Graph (DAG), specifically using the topologic sort algorithm. While this is nothing new, it is very effective and allows jobs to be defined in any order, taking away some of that stress and enabling multidisciplinary teams to work togther. The only thing that needs to be agreed upon are the resources used by each job.
 
 ## Usage
 
