@@ -1,5 +1,9 @@
 # Pypes <a href='https://github.com/schlerp/pypes'><img src='.assets/pypes_logo.svg' align="right" height="270"/></a>
 
+[![Test](https://github.com/schlerp/pypes/actions/workflows/tests.yml/badge.svg)](https://github.com/schlerp/pypes/actions/workflows/tests.yml)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+
 Pypes (pronounced "pipes") is a workflow engine/pipeline implementation for unix jobs. 
 ## Overview
 
@@ -29,3 +33,17 @@ pip install -e src/
 python -m pypes
 ```
 
+## Tests
+
+```bash
+# assuming environment is set up and activated
+coverage run -m pytest
+
+# for coverage report
+coverage report
+
+```
+
+## Author
+
+- [Patrick Coffey](https://github.com/schlerp)

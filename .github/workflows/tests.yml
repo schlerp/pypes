@@ -24,3 +24,6 @@ jobs:
       - name: Run test suite
         run: |
           coverage run -m pytest && coverage report --sort=cover
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2

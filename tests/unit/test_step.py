@@ -15,7 +15,7 @@ def test_step_run_success(
     step_run = run_step(step)
     output_content = step.outputs[0].read()
     cleanup_temp_files([step])
-    assert output_content and output_content.decode() == "abcdef"
+    assert step_run.outcome == "finished" and output_content.decode() == "abcdef"
 
 
 def test_step_run_failure(
