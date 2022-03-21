@@ -9,15 +9,6 @@ def test_resource_path():
     assert "/test/path" == Resource(path="/test/path").path
 
 
-def test_resource_id_default():
-    assert Resource(path="/test/path").id is not None
-
-
-def test_resource_id():
-    _id = uuid4()
-    assert Resource(path="/test/path", id=_id).id == _id
-
-
 def test_resource_exist():
     with tempfile.NamedTemporaryFile() as f:
         res = Resource(path=f.name)

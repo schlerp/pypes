@@ -1,5 +1,6 @@
 from typing import Callable
 
+from pypes.execution import run_step
 from pypes.models import Step
 
 
@@ -11,8 +12,8 @@ def test_step_run_success(
     create_test_step: Callable[..., Step], cleanup_temp_files: Callable[..., None]
 ):
     step = create_test_step()
-    step.run()
-    output_content = step.outputs[0].content
+    step_run = run_step(step)
+    output_content = step.outputs[0].read()
     cleanup_temp_files([step])
     assert output_content and output_content.decode() == "abcdef"
 
@@ -21,33 +22,36 @@ def test_step_run_failure(
     create_test_step: Callable[..., Step], cleanup_temp_files: Callable[..., None]
 ):
     step = create_test_step(should_succeed=False)
-    step.run()
+    step_run = run_step(step)
     cleanup_temp_files([step])
-    assert step.status == "error"
+    assert step_run.outcome == "error"
 
 
-def test_step_stdout():
+def test_step_stdout(cleanup_temp_files: Callable[..., None]):
     step = Step(
         name="test step",
         command="echo test",
     )
-    step.run()
-    assert step.stdout and step.stdout.strip() == "test"
+    step_run = run_step(step)
+    cleanup_temp_files([step])
+    assert step_run.stdout.strip() == "test"
 
 
-def test_step_stderr():
+def test_step_stderr(cleanup_temp_files: Callable[..., None]):
     step = Step(
         name="test step",
         command=">&2 echo test",
     )
-    step.run()
-    assert step.stderr and step.stderr.strip() == "test"
+    step_run = run_step(step)
+    cleanup_temp_files([step])
+    assert step_run.stderr.strip() == "test"
 
 
-def test_step_returncode():
+def test_step_returncode(cleanup_temp_files: Callable[..., None]):
     step = Step(
         name="test step",
         command="echo test",
     )
-    step.run()
-    assert step.returncode == 0
+    step_run = run_step(step)
+    cleanup_temp_files([step])
+    assert step_run.returncode == 0

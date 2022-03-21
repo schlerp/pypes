@@ -4,6 +4,7 @@ src_dir = "./src"
 sys.path.append(src_dir)
 
 import pytest
+
 import test_utils
 
 
@@ -20,3 +21,8 @@ def create_test_step():
 @pytest.fixture
 def cleanup_temp_files():
     return test_utils.cleanup_temp_files
+
+
+@pytest.fixture
+def create_split_merge_pipeline():
+    return test_utils.create_split_merge_pipeline
