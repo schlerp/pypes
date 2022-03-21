@@ -1,6 +1,7 @@
 # Pypes <a href='https://github.com/schlerp/pypes'><img src='.assets/pypes_logo.svg' align="right" height="270"/></a>
 
 [![Test](https://github.com/schlerp/pypes/actions/workflows/tests.yml/badge.svg)](https://github.com/schlerp/pypes/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/schlerp/pypes/branch/main/graph/badge.svg?token=8FDVK8PHF1)](https://codecov.io/gh/schlerp/pypes)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 
