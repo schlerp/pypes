@@ -20,33 +20,44 @@ An example pipeline configuration created with pypes (interactively using the cr
 
 ```json
 {
-  name: Interesting Cohen
-  owner: schlerp
-  resources:
-  {
-    test1: /tmp/test1
-    test2: /tmp/test2
-  }
-  context:
-  {
-    test: hello world!
-  }
-  steps:
-  [
+  "id": "8720cbf4a1944496a3e5cc329d4c7c89",
+  "ran_at": "2022-03-22 12:26:24.370564",
+  "pipeline": {
+    "name": "Hungry Torvalds",
+    "owner": "schlerp",
+    "resources": {
+      "test1": "/tmp/test1",
+      "test2": "/tmp/test2"
+    },
+    "context": {
+      "message": "hello world!"
+    },
+    "steps": [
+      {
+        "name": "cp test1 to test2",
+        "inputs": {
+          "test1": "/tmp/test1"
+        },
+        "outputs": {
+          "test2": "/tmp/test2"
+        },
+        "command": "cp {{ inputs['test1'] }} {{ outputs['test2'] }} && echo {{ context['message'] }}"
+      }
+    ],
+    "created": "2022-03-22 12:24:35.837525"
+  },
+  "step_runs": [
     {
-      name: do stuff
-      inputs:
-      {
-        test1: /tmp/test1
-      }
-      outputs:
-      {
-        test2: /tmp/test2
-      }
-      command: cp {{ inputs['test1'] }} {{ outputs['test2'] }} && echo {{ context['test'] }}
+      "id": "a7c62a93c3c74a4986a16a3f37e82770",
+      "ran_at": "2022-03-22 12:26:24.375163",
+      "step_name": "cp test1 to test2",
+      "outcome": "finished",
+      "stdout": "hello world!\n",
+      "stderr": "",
+      "returncode": 0
     }
-  ]
-  created: 2022-03-22 12:05:22.448109
+  ],
+  "outcome": "finished"
 }
 ```
 
