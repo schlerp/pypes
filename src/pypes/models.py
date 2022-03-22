@@ -1,7 +1,6 @@
-import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Union
+from typing import Dict, List, Literal, Union
 from uuid import uuid4
 
 from pydantic import BaseModel, Field
@@ -37,8 +36,7 @@ class StepRun(PypesModel):
 class Pipeline(PypesModel):
     name: str
     owner: str
-    working_dir: str
-    resources: Dict[str, Path] = Field(default_factory=list)
+    resources: Dict[str, Path] = Field(default_factory=dict)
     steps: List[Step] = Field(default_factory=list)
     created: datetime = Field(default_factory=datetime.utcnow)
 

@@ -79,6 +79,5 @@ def create_split_merge_pipeline(
     return Pipeline(
         name="test pipeline",
         owner="test",
-        working_dir="/tmp",
         steps=[step1, step2, step3],
     )

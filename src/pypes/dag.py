@@ -1,5 +1,5 @@
-from typing import List
-
+from typing import List, Tuple
+from pathlib import Path
 import networkx
 
 from pypes.exceptions import InvalidDAGException
@@ -7,7 +7,7 @@ from pypes.models import Pipeline
 
 
 def pipeline_to_dag(pipeline: Pipeline) -> networkx.MultiDiGraph:
-    edge_list = []
+    edge_list: List[Tuple[str, str, Path]] = []
     for source in pipeline.steps:
         for target in pipeline.steps:
             for output in source.outputs.values():

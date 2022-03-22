@@ -15,12 +15,11 @@ def deserialise_pipeline(pipeline_text: str) -> Pipeline:
         name=pipeline.name,
         owner=pipeline.owner,
         steps=pipeline.steps,
-        working_dir=pipeline.working_dir,
         created=pipeline.created,
     )
 
 
-def serialise_pipeline(pipeline: Pipeline):
+def serialise_pipeline(pipeline: Pipeline) -> str:
     return dumps(pipeline.dict(), indent=2, default=str)
 
 
@@ -29,11 +28,15 @@ def read_pipeline(path: Path) -> Pipeline:
 
 
 def write_pipeline(pipeline: Pipeline, path: Path = Path("./.pipeline.conf")):
-    path.rename(path.with_suffix(".bak"))
+    if path.exists():
+        path.rename(path.with_suffix(".bak"))
     try:
         config_text = serialise_pipeline(pipeline)
         with open(path, "w") as f:
             f.write(config_text)
-    except Exception as e:
-        path.with_suffix(".bak").rename(path)
+        if path.with_suffix(".bak").exists():
+            path.with_suffix(".bak").unlink()
+    except Exception as e:  # pragma: no cover
+        if path.with_suffix(".bak").exists():
+            path.with_suffix(".bak").rename(path)
         raise e
