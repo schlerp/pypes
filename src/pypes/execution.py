@@ -1,4 +1,5 @@
 import subprocess
+from typing import Dict
 
 from jinja2 import Environment
 
@@ -6,12 +7,12 @@ from pypes.dag import get_execution_order, pipeline_to_dag
 from pypes.models import Pipeline, PipelineRun, Step, StepRun
 
 
-def run_step(step: Step) -> StepRun:
+def run_step(step: Step, context: Dict[str, str]) -> StepRun:
     command_subbed = (
         Environment()
         .from_string(step.command)
         .render(
-            {"inputs": step.inputs, "outputs": step.outputs, "context": step.context},
+            {"inputs": step.inputs, "outputs": step.outputs, "context": context},
         )
     )
     process = subprocess.Popen(
@@ -31,13 +32,13 @@ def run_step(step: Step) -> StepRun:
 
 
 def run_pipeline(pipeline: Pipeline) -> PipelineRun:
-    pipeline_run = PipelineRun(pipeline_name=pipeline.name)
+    pipeline_run = PipelineRun(pipeline=pipeline)
     dag = pipeline_to_dag(pipeline)
     step_runs = []
     errored = False
     for step_id in get_execution_order(dag):
         step = pipeline.get_step(step_id)
-        step_run = run_step(step)
+        step_run = run_step(step, pipeline.context)
         step_runs.append(step_run)
         if step_run.returncode and step_run.returncode > 0:
             errored = True

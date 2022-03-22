@@ -3,6 +3,7 @@ from pathlib import Path
 from hjson import dumps, loads
 
 from pypes.models import Pipeline
+from pypes.constants import DEFAULT_CONFIG_PATH
 
 
 class InvalidConfigFileException(Exception):
@@ -11,19 +12,14 @@ class InvalidConfigFileException(Exception):
 
 def deserialise_pipeline(pipeline_text: str) -> Pipeline:
     pipeline = Pipeline(**loads(pipeline_text))
-    return Pipeline(
-        name=pipeline.name,
-        owner=pipeline.owner,
-        steps=pipeline.steps,
-        created=pipeline.created,
-    )
+    return pipeline
 
 
 def serialise_pipeline(pipeline: Pipeline) -> str:
     return dumps(pipeline.dict(), indent=2, default=str)
 
 
-def read_pipeline(path: Path) -> Pipeline:
+def read_pipeline(path: Path = Path(DEFAULT_CONFIG_PATH)) -> Pipeline:
     return deserialise_pipeline(path.read_text())
 
 

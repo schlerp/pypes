@@ -19,7 +19,6 @@ class Step(PypesModel):
     name: str
     inputs: Dict[str, Path] = Field(default_factory=dict)
     outputs: Dict[str, Path] = Field(default_factory=dict)
-    context: Dict[str, str] = Field(default_factory=dict)
     command: str = "echo {name}"
 
 
@@ -37,6 +36,7 @@ class Pipeline(PypesModel):
     name: str
     owner: str
     resources: Dict[str, Path] = Field(default_factory=dict)
+    context: Dict[str, str] = Field(default_factory=dict)
     steps: List[Step] = Field(default_factory=list)
     created: datetime = Field(default_factory=datetime.utcnow)
 
@@ -50,6 +50,6 @@ class Pipeline(PypesModel):
 class PipelineRun(PypesModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
     ran_at: datetime = Field(default_factory=datetime.utcnow)
-    pipeline_name: str
+    pipeline: Pipeline
     step_runs: List[StepRun] = Field(default_factory=list)
     outcome: Union[Outcome, None] = None

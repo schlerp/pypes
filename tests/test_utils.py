@@ -67,11 +67,13 @@ def create_split_merge_pipeline(
     res1 = create_test_resource("abc")
     res2 = create_test_resource()
     res3 = create_test_resource()
+    resources = {"res1": res1, "res2": res2, "res3": res3}
 
     step1 = create_cp_step(name="step 1", source=res1, target=res2)
     step2 = create_cp_step(name="step 2", source=res1, target=res3)
     if should_succeed:
         res4 = create_test_resource()
+        resources["res4"] = res4
         step3 = create_merge_step(name="step 3", sources=(res2, res3), target=res4)
     else:
         step3 = create_merge_step(name="step 3", sources=(res2, res3), target=res1)
@@ -79,5 +81,7 @@ def create_split_merge_pipeline(
     return Pipeline(
         name="test pipeline",
         owner="test",
+        resources=resources,
+        context={"test": "hello world!"},
         steps=[step1, step2, step3],
     )

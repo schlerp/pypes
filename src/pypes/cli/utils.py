@@ -1,9 +1,12 @@
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Callable, TypeVar, MutableMapping
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
+import hjson
 
 from prompt_toolkit import prompt
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import FuzzyWordCompleter
 from prompt_toolkit.shortcuts import clear
+from pypes.cli.completers import FilePathCompleter
 from pypes.cli.validators import (
     ChoiceValidator,
     KeyValidator,
@@ -13,8 +16,11 @@ from pypes.cli.validators import (
 )
 from pypes.models import Pipeline, Step
 
-
 T = TypeVar("T", Dict[Any, Any], List[Any])
+
+
+def truncate_text(text: str, max_len: int) -> str:
+    return text if len(text) < (max_len - 3) else "{}...".format(text[0 : max_len - 3])
 
 
 def print_header(pipeline: Optional[Pipeline] = None):
@@ -22,49 +28,66 @@ def print_header(pipeline: Optional[Pipeline] = None):
     print("Pypes: the unix workflow engine")
     print()
     if pipeline:
-        print("╔" + ("═" * 63) + "╗")
-        print("║ pipeline name:    {:43} ║".format(pipeline.name))
-        print("║ pipeline owner:   {:43} ║".format(pipeline.owner))
+        print("╔" + ("═" * 53) + "╗")
+        print("║ pipeline name:    {:33} ║".format(pipeline.name))
+        print("║ pipeline owner:   {:33} ║".format(pipeline.owner))
         print(
-            "║ pipeline created: {:43} ║".format(
+            "║ pipeline created: {:33} ║".format(
                 pipeline.created.strftime("%d-%m-%Y %H:%M")
             )
         )
         if pipeline.resources:
-            print("╠" + ("═" * 63) + "╣")
-            print("║ pipeline resources:" + (" " * 43) + "║")
-            for k, v in pipeline.resources.items():
-                print("║ * {:20} {:38} ║".format(k, str(v)))
+            print("╠" + ("═" * 53) + "╣")
+            print("║ pipeline resources:" + (" " * 33) + "║")
+            for name, path in pipeline.resources.items():
+                print(
+                    "║ - {:20} {:28} ║".format(
+                        truncate_text(name, 20), truncate_text(str(path), 28)
+                    )
+                )
+        if pipeline.context:
+            print("╠" + ("═" * 53) + "╣")
+            print("║ pipeline context:" + (" " * 35) + "║")
+            for key, value in pipeline.context.items():
+                print(
+                    "║ - {:20} {:28} ║".format(
+                        truncate_text(key, 20), truncate_text(value, 28)
+                    )
+                )
         if pipeline.steps:
-            print("╠" + ("═" * 63) + "╣")
-            print("║ pipeline resources:" + (" " * 43) + "║")
+            print("╠" + ("═" * 53) + "╣")
+            print("║ pipeline steps:" + (" " * 37) + "║")
             for s in pipeline.steps:
-                print("║ * {:20} {:38} ║".format(s.name, s.command))
-        print("╚" + ("═" * 63) + "╝")
+                print(
+                    "║ - {:20} {:28} ║".format(
+                        truncate_text(s.name, 20), truncate_text(s.command, 28)
+                    )
+                )
+        print("╚" + ("═" * 53) + "╝")
         print()
 
 
-def ask_finished(repeat_question: Optional[str] = None) -> bool:
+def ask_yesno(question: str) -> bool:
     answer = prompt(
-        repeat_question or "would you like to add another? (y/n)",
-        default="yes",
+        question,
         validator=YesNoValidator(),
+        completer=FuzzyWordCompleter(["yes", "no"]),
     )
     if answer.strip().lower() in ["n", "no"]:
-        return True
-    return False
+        return False
+    return True
 
 
 def while_not_finished_pipeline(
     pipeline: Pipeline,
     prompt_function: Callable[[Pipeline], Pipeline],
-    repeat_question: Optional[str] = None,
+    question: str,
 ):
     finished = False
     while not finished:
         print_header(pipeline)
         pipeline = prompt_function(pipeline)
-        finished = ask_finished(repeat_question)
+        finished = not ask_yesno(question)
     return pipeline
 
 
@@ -72,22 +95,28 @@ def while_not_finished_mutateable(
     pipeline: Pipeline,
     prompt_function: Callable[[Pipeline, T, Any], T],
     mutatable: T,
+    question: str,
     extra_context: Optional[Any] = None,
-    repeat_question: Optional[str] = None,
 ):
     finished = False
     while not finished:
         print_header(pipeline)
         mutatable = prompt_function(pipeline, mutatable, extra_context)
-        finished = ask_finished(repeat_question)
+        finished = not ask_yesno(question)
     return mutatable
 
 
 def add_resources(pipeline: Pipeline):
     def add_resource_prompt(pipeline: Pipeline) -> Pipeline:
-        path = prompt("Resource to add: ", validator=PathValidator(pipeline.resources))
+        path = prompt(
+            "Path of resource: ",
+            validator=PathValidator(pipeline.resources),
+            completer=FilePathCompleter(),
+            complete_while_typing=True,
+        )
         name = prompt(
-            "Name for resource ({}): ".format(path),
+            "Name of resource: ",
+            default=os.path.splitext(os.path.split(path)[-1])[0],
             validator=UniqueValidator([x for x in pipeline.resources]),
         )
         pipeline.resources[name] = Path(path)
@@ -96,7 +125,7 @@ def add_resources(pipeline: Pipeline):
     return while_not_finished_pipeline(
         pipeline,
         prompt_function=add_resource_prompt,
-        repeat_question="Add another resource?",
+        question="Add another resource? (yes/no) ",
     )
 
 
@@ -104,11 +133,10 @@ def choose_resource(
     resources: Dict[str, Path], prompt_message: str
 ) -> Tuple[str, Path]:
     resource_names = [x for x in resources.keys()]
-    print_header()
     choice = prompt(
         prompt_message,
         validator=ChoiceValidator(resource_names),
-        completer=WordCompleter(resource_names),
+        completer=FuzzyWordCompleter(resource_names),
     )
     return choice, resources[choice]
 
@@ -134,15 +162,33 @@ def collect_resources(
         return collected_resources
 
     return while_not_finished_mutateable(
-        pipeline, collect_resource_prompt, {}, exclude_keys
+        pipeline,
+        collect_resource_prompt,
+        {},
+        "Use another resource? (y/n) ",
+        exclude_keys,
     )
 
 
-def create_context(
-    pipeline: Pipeline, context: Optional[Dict[str, str]] = None
-) -> Dict[str, str]:
-    context = context or {}
+def create_command(
+    pipeline: Pipeline,
+    input_keys: Optional[List[str]] = None,
+    output_keys: Optional[List[str]] = None,
+    context_keys: Optional[List[str]] = None,
+) -> str:
+    print_header(pipeline)
+    input_keys = ["{{{{ inputs['{}'] }}}}".format(x) for x in input_keys or []]
+    output_keys = ["{{{{ outputs['{}'] }}}}".format(x) for x in output_keys or []]
+    context_keys = ["{{{{ context['{}'] }}}}".format(x) for x in context_keys or []]
+    return prompt(
+        "comand for this step:\n",
+        completer=FuzzyWordCompleter(
+            [*input_keys, *output_keys, *context_keys],
+        ),
+    )
 
+
+def add_context(pipeline: Pipeline) -> Pipeline:
     def create_context_prompt(pipeline: Pipeline, context: Dict[str, str], *args):
         key = prompt(
             "Context key: ",
@@ -152,24 +198,13 @@ def create_context(
         context[key] = value
         return context
 
-    return while_not_finished_mutateable(pipeline, create_context_prompt, {}, None)
-
-
-def create_command(
-    input_keys: Optional[List[str]] = None,
-    output_keys: Optional[List[str]] = None,
-    context_keys: Optional[List[str]] = None,
-) -> str:
-    print_header()
-    input_keys = ["{{{{ inputs['{}'] }}}}".format(x) for x in input_keys or []]
-    output_keys = ["{{{{ outputs['{}'] }}}}".format(x) for x in output_keys or []]
-    context_keys = ["{{{{ context['{}'] }}}}".format(x) for x in context_keys or []]
-    return prompt(
-        "command: ",
-        completer=WordCompleter(
-            [*input_keys, *output_keys, *context_keys],
-        ),
+    pipeline.context = while_not_finished_mutateable(
+        pipeline,
+        create_context_prompt,
+        pipeline.context,
+        "Add more key/vals to context? (y/n) ",
     )
+    return pipeline
 
 
 def add_steps(pipeline: Pipeline):
@@ -183,16 +218,11 @@ def add_steps(pipeline: Pipeline):
             pipeline, "output resource: ", exclude_keys=[x for x in inputs.keys()]
         )
 
-        print_header(pipeline)
-        print("add extra job context:")
-        context = create_context(pipeline)
-
-        print_header(pipeline)
-        print("create the command:")
         command = create_command(
+            pipeline,
             [x for x in inputs.keys()],
             [x for x in outputs.keys()],
-            [x for x in context.keys()],
+            [x for x in pipeline.context.keys()],
         )
 
         pipeline.steps.append(
@@ -200,10 +230,27 @@ def add_steps(pipeline: Pipeline):
                 name=name,
                 inputs=inputs,
                 outputs=outputs,
-                context=context,
                 command=command,
             )
         )
         return pipeline
 
-    return while_not_finished_pipeline(pipeline, add_step_prompt)
+    return while_not_finished_pipeline(
+        pipeline, add_step_prompt, "Add another step to pipeline? (y/n) "
+    )
+
+
+def build_pipeline_interactive(pipeline: Pipeline) -> Pipeline:
+    if ask_yesno("Would you like to add resources? (y/n) "):
+        pipeline = add_resources(pipeline)
+    if ask_yesno("Would you like to add extra context? (y/n) "):
+        pipeline = add_context(pipeline)
+    if ask_yesno("Would you like to add steps? (y/n) "):
+        pipeline = add_steps(pipeline)
+    return pipeline
+
+
+def edit_pipeline_interactive(pipeline: Pipeline) -> Pipeline:
+    # TODO: implement editing logic
+    print_header(pipeline)
+    return pipeline
