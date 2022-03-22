@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
-import hjson
 
 from prompt_toolkit import prompt
 from prompt_toolkit.completion import FuzzyWordCompleter

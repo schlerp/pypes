@@ -14,9 +14,9 @@ A pipeline represents the top level object of this application. It has a name, a
 
 Dependency resolution is calculated at run time by representing the pipeline as a Directed Acyclic Graph (DAG), specifically using the topologic sort algorithm. While this is nothing new, it is very effective and allows jobs to be defined in any order, taking away some of that stress and enabling multidisciplinary teams to work togther. The only thing that needs to be agreed upon are the resources used by each job.
 
-## Usage
+## Example
 
-An example pipeline configuration created with pypes (interactively using the create command). This Job copies the text from the resource
+An example pipeline configuration created with pypes (interactively using the create command). when ran would produce this output. Notice the pipeline definition is included in the output.
 
 ```json
 {
@@ -47,62 +47,6 @@ An example pipeline configuration created with pypes (interactively using the cr
     }
   ]
   created: 2022-03-22 12:05:22.448109
-}
-```
-
-The above pipeline when ran produces the following output (while also copying the file /tmp/test1 to /tmp/test2):
-
-```json
-{
-  id: 85c04ad898104e04acd746b2f7cbedbc
-  ran_at: 2022-03-22 12:18:51.756315
-  pipeline:
-  {
-    name: Interesting Cohen
-    owner: schlerp
-    resources:
-    {
-        test1: /tmp/test1
-        test2: /tmp/test2
-    }
-    context:
-    {
-        test: hello world!
-    }
-    steps:
-    [
-        {
-        name: do stuff
-        inputs:
-        {
-            test1: /tmp/test1
-        }
-        outputs:
-        {
-            test2: /tmp/test2
-        }
-        command: cp {{ inputs['test1'] }} {{ outputs['test2'] }} && echo {{ context['test'] }}
-        }
-    ]
-    created: 2022-03-22 12:05:22.448109
-  }
-  step_runs:
-  [
-    {
-      id: 201608ea1dbc4c7995eecbcbcdfbe9fc
-      ran_at: 2022-03-22 12:18:51.761114
-      step_name: do stuff
-      outcome: finished
-      stdout:
-        '''
-        hello world!
-
-        '''
-      stderr: ""
-      returncode: 0
-    }
-  ]
-  outcome: finished
 }
 ```
 

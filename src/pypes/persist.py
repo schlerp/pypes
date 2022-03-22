@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from hjson import dumps, loads
+from json import dumps, loads
 
 from pypes.models import Pipeline
 from pypes.constants import DEFAULT_CONFIG_PATH

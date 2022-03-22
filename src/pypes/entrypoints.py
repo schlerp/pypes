@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-import hjson
+import json
 import typer
 from names_generator import generate_name
 
@@ -46,7 +46,7 @@ def pipeline_edit():
 def pipeline_run():
     pipeline = read_pipeline()
     exec_results = run_pipeline(pipeline)
-    print(hjson.dumps(exec_results.dict(), indent=2, default=str))
+    print(json.dumps(exec_results.dict(), indent=2, default=str))
 
 
 def main():
