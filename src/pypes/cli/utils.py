@@ -1,65 +1,20 @@
-import re
 from pathlib import Path
-from typing import Dict, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Callable, TypeVar, MutableMapping
 
 from prompt_toolkit import prompt
-from prompt_toolkit.shortcuts import clear
 from prompt_toolkit.completion import WordCompleter
-from prompt_toolkit.validation import ValidationError, Validator
+from prompt_toolkit.shortcuts import clear
+from pypes.cli.validators import (
+    ChoiceValidator,
+    KeyValidator,
+    PathValidator,
+    UniqueValidator,
+    YesNoValidator,
+)
 from pypes.models import Pipeline, Step
 
 
-class PathValidator(Validator):
-    def __init__(self, resources: Optional[Dict[str, Path]] = None):
-        self.resources = resources or {}
-
-    def validate(self, document):
-        regex_pattern = r"^(/)?([^/\0]+(/)?)+$"
-        if not re.match(regex_pattern, document.text):
-            raise ValidationError(message="input is not path like!")
-        elif document.text in self.resources.values():
-            raise ValidationError(message="resource is already added!")
-
-
-class KeyValidator(Validator):
-    def __init__(self, existing_keys: Optional[List[str]] = None):
-        self.existing_keys = existing_keys or []
-
-    def validate(self, document):
-        regex_pattern = r"^[a-zA-Z0-9_]*$"
-        if not re.match(regex_pattern, document.text):
-            raise ValidationError(message="input is not a valid key (no spaces)!")
-        elif document.text in self.existing_keys:
-            raise ValidationError(
-                message="key {} already in use!".format(document.text)
-            )
-
-
-class UniqueValidator(Validator):
-    def __init__(self, unique_list: Optional[List[str]] = None):
-        self.unique_list = unique_list or []
-
-    def validate(self, document):
-        if document.text in self.unique_list:
-            raise ValidationError(message="{} is already in use!".format(document.text))
-
-
-class YesNoValidator(Validator):
-    def validate(self, document):
-        text = document.text.strip().lower()
-        if text not in ["yes", "no", "y", "n"]:
-            raise ValidationError(message="{} is not one of yes/no!".format(text))
-
-
-class ChoiceValidator(Validator):
-    def __init__(self, unique_list: Optional[List[str]] = None):
-        self.unique_list = unique_list or []
-
-    def validate(self, document):
-        if document.text not in self.unique_list:
-            raise ValidationError(
-                message="{} is not a valid choice!".format(document.text)
-            )
+T = TypeVar("T", Dict[Any, Any], List[Any])
 
 
 def print_header(pipeline: Optional[Pipeline] = None):
@@ -89,36 +44,69 @@ def print_header(pipeline: Optional[Pipeline] = None):
         print()
 
 
-def add_resources(pipeline: Pipeline):
+def ask_finished(repeat_question: Optional[str] = None) -> bool:
+    answer = prompt(
+        repeat_question or "would you like to add another? (y/n)",
+        default="yes",
+        validator=YesNoValidator(),
+    )
+    if answer.strip().lower() in ["n", "no"]:
+        return True
+    return False
+
+
+def while_not_finished_pipeline(
+    pipeline: Pipeline,
+    prompt_function: Callable[[Pipeline], Pipeline],
+    repeat_question: Optional[str] = None,
+):
     finished = False
     while not finished:
         print_header(pipeline)
-        print("current resources:")
-        print(
-            "\n".join(
-                ["  * {}: {}".format(k, v) for k, v in pipeline.resources.items()]
-            )
-        )
+        pipeline = prompt_function(pipeline)
+        finished = ask_finished(repeat_question)
+    return pipeline
+
+
+def while_not_finished_mutateable(
+    pipeline: Pipeline,
+    prompt_function: Callable[[Pipeline, T, Any], T],
+    mutatable: T,
+    extra_context: Optional[Any] = None,
+    repeat_question: Optional[str] = None,
+):
+    finished = False
+    while not finished:
+        print_header(pipeline)
+        mutatable = prompt_function(pipeline, mutatable, extra_context)
+        finished = ask_finished(repeat_question)
+    return mutatable
+
+
+def add_resources(pipeline: Pipeline):
+    def add_resource_prompt(pipeline: Pipeline) -> Pipeline:
         path = prompt("Resource to add: ", validator=PathValidator(pipeline.resources))
         name = prompt(
             "Name for resource ({}): ".format(path),
             validator=UniqueValidator([x for x in pipeline.resources]),
         )
         pipeline.resources[name] = Path(path)
-        answer = prompt(
-            "would you like to add another? (y/n) ", validator=YesNoValidator()
-        )
-        if answer.strip().lower() in ["n", "no"]:
-            finished = True
-    return pipeline
+        return pipeline
+
+    return while_not_finished_pipeline(
+        pipeline,
+        prompt_function=add_resource_prompt,
+        repeat_question="Add another resource?",
+    )
 
 
-def choose_resource(resources: Dict[str, Path]) -> Tuple[str, Path]:
-    print("resources:")
-    print("\n".join(["  * {}: {}".format(k, v) for k, v in resources.items()]))
+def choose_resource(
+    resources: Dict[str, Path], prompt_message: str
+) -> Tuple[str, Path]:
     resource_names = [x for x in resources.keys()]
+    print_header()
     choice = prompt(
-        "choose a resource: ",
+        prompt_message,
         validator=ChoiceValidator(resource_names),
         completer=WordCompleter(resource_names),
     )
@@ -126,45 +114,45 @@ def choose_resource(resources: Dict[str, Path]) -> Tuple[str, Path]:
 
 
 def collect_resources(
-    pipeline: Pipeline, exclude_keys: Optional[List[str]] = None
+    pipeline: Pipeline,
+    prompt_message: str,
+    exclude_keys: Optional[List[str]] = None,
 ) -> Dict[str, Path]:
     exclude_keys = exclude_keys or []
-    collected_resources: Dict[str, Path] = {}
-    finished_inputs = False
-    while not finished_inputs:
+
+    def collect_resource_prompt(
+        pipeline: Pipeline,
+        collected_resources: Dict[str, Path],
+        exclude_keys: List[str],
+    ):
         name, path = choose_resource(
-            {k: v for k, v in pipeline.resources.items() if k not in exclude_keys}
+            {k: v for k, v in pipeline.resources.items() if k not in exclude_keys},
+            prompt_message,
         )
         if name not in collected_resources:
             collected_resources[name] = path
-        answer = prompt(
-            "would you like to add another resource? (y/n) ",
-            validator=YesNoValidator(),
-        )
-        if answer.strip().lower() in ["n", "no"]:
-            finished_inputs = True
-    return collected_resources
+        return collected_resources
+
+    return while_not_finished_mutateable(
+        pipeline, collect_resource_prompt, {}, exclude_keys
+    )
 
 
-def create_context(context: Optional[Dict[str, str]] = None) -> Dict[str, str]:
-    ret_dict = context or {}
-    finished = False
-    while not finished:
-        print("current context:")
-        print("\n".join(["  * {}: {}".format(k, v) for k, v in ret_dict.items()]))
+def create_context(
+    pipeline: Pipeline, context: Optional[Dict[str, str]] = None
+) -> Dict[str, str]:
+    context = context or {}
+
+    def create_context_prompt(pipeline: Pipeline, context: Dict[str, str], *args):
         key = prompt(
-            "Context key (alphanumeric with no spaces): ",
-            validator=KeyValidator([x for x in ret_dict]),
+            "Context key: ",
+            validator=KeyValidator([x for x in context]),
         )
         value = prompt("Context value: ")
-        ret_dict[key] = value
-        answer = prompt(
-            "would you like to add another resource? (y/n) ",
-            validator=YesNoValidator(),
-        )
-        if answer.strip().lower() in ["n", "no"]:
-            finished = True
-    return ret_dict
+        context[key] = value
+        return context
+
+    return while_not_finished_mutateable(pipeline, create_context_prompt, {}, None)
 
 
 def create_command(
@@ -172,7 +160,7 @@ def create_command(
     output_keys: Optional[List[str]] = None,
     context_keys: Optional[List[str]] = None,
 ) -> str:
-    clear()
+    print_header()
     input_keys = ["{{{{ inputs['{}'] }}}}".format(x) for x in input_keys or []]
     output_keys = ["{{{{ outputs['{}'] }}}}".format(x) for x in output_keys or []]
     context_keys = ["{{{{ context['{}'] }}}}".format(x) for x in context_keys or []]
@@ -185,26 +173,19 @@ def create_command(
 
 
 def add_steps(pipeline: Pipeline):
-    finished = False
-    while not finished:
-        print_header(pipeline)
-        print("current steps:")
-        print("\n".join(["  * {}".format(s.name) for s in pipeline.steps]))
+    def add_step_prompt(pipeline: Pipeline) -> Pipeline:
         name = prompt(
             "Name of step: ",
             validator=UniqueValidator([x.name for x in pipeline.steps]),
         )
-
-        print_header(pipeline)
-        print("select input resources:")
-        inputs = collect_resources(pipeline)
-        print_header(pipeline)
-        print("select output resources:")
-        outputs = collect_resources(pipeline, exclude_keys=[x for x in inputs.keys()])
+        inputs = collect_resources(pipeline, "input resource: ")
+        outputs = collect_resources(
+            pipeline, "output resource: ", exclude_keys=[x for x in inputs.keys()]
+        )
 
         print_header(pipeline)
         print("add extra job context:")
-        context = create_context()
+        context = create_context(pipeline)
 
         print_header(pipeline)
         print("create the command:")
@@ -223,10 +204,6 @@ def add_steps(pipeline: Pipeline):
                 command=command,
             )
         )
+        return pipeline
 
-        answer = prompt(
-            "would you like to add another step? (y/n) ", validator=YesNoValidator()
-        )
-        if answer.strip().lower() in ["n", "no"]:
-            finished = True
-    return pipeline
+    return while_not_finished_pipeline(pipeline, add_step_prompt)
