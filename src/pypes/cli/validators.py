@@ -1,7 +1,8 @@
-from prompt_toolkit.validation import ValidationError, Validator
-from typing import Dict, Optional, List
-from pathlib import Path
 import re
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from prompt_toolkit.validation import ValidationError, Validator
 
 
 class PathValidator(Validator):

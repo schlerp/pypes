@@ -1,19 +1,19 @@
-from typing import List, Tuple
 from pathlib import Path
-import networkx
+from typing import List, Tuple
 
+import networkx
 from pypes.exceptions import InvalidDAGException
-from pypes.models import Pipeline
+from pypes.models.pipeline import Pipeline
 
 
 def pipeline_to_dag(pipeline: Pipeline) -> networkx.MultiDiGraph:
-    edge_list: List[Tuple[str, str, Path]] = []
+    edge_list: List[Tuple[str, str, str]] = []
     for source in pipeline.steps:
         for target in pipeline.steps:
-            for output in source.outputs.values():
+            for output in source.outputs:
                 if source.name == target.name:
                     continue
-                for _input in target.inputs.values():
+                for _input in target.inputs:
                     if output == _input:
                         edge_list.append((source.name, target.name, output))
     nodes = [step.name for step in pipeline.steps]
@@ -28,3 +28,11 @@ def pipeline_to_dag(pipeline: Pipeline) -> networkx.MultiDiGraph:
 
 def get_execution_order(dag: networkx.MultiDiGraph) -> List[str]:
     return list(networkx.topological_sort(dag))
+
+
+def get_ancestors(dag: networkx.MultiDiGraph, name: str) -> List[str]:
+    return [x for x in networkx.ancestors(dag, name)]
+
+
+def get_descendants(dag: networkx.MultiDiGraph, name: str) -> List[str]:
+    return [x for x in networkx.descendants(dag, name)]

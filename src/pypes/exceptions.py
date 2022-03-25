@@ -4,3 +4,7 @@ class NoMatchingStepException(Exception):
 
 class InvalidDAGException(Exception):
     pass
+
+
+class KeyAlreadyInUseException(Exception):
+    pass

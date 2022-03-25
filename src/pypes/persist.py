@@ -1,9 +1,8 @@
+from json import dumps, loads
 from pathlib import Path
 
-from json import dumps, loads
-
-from pypes.models import Pipeline
 from pypes.constants import DEFAULT_CONFIG_PATH
+from pypes.models.pipeline import Pipeline
 
 
 class InvalidConfigFileException(Exception):

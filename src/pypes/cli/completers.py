@@ -1,5 +1,6 @@
 import os
-from typing import List, Tuple
+from typing import List
+
 from prompt_toolkit.completion import Completer, Completion
 
 

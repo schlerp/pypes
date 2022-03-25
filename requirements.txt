@@ -4,3 +4,4 @@ typer
 names_generator
 jinja2
 hjson
+python-slugify

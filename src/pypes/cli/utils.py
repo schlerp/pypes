@@ -13,7 +13,8 @@ from pypes.cli.validators import (
     UniqueValidator,
     YesNoValidator,
 )
-from pypes.models import Pipeline, Step
+from pypes.models.pipeline import Pipeline
+from pypes.models.step import Step
 
 T = TypeVar("T", Dict[Any, Any], List[Any])
 
@@ -144,12 +145,12 @@ def collect_resources(
     pipeline: Pipeline,
     prompt_message: str,
     exclude_keys: Optional[List[str]] = None,
-) -> Dict[str, Path]:
+) -> List[str]:
     exclude_keys = exclude_keys or []
 
     def collect_resource_prompt(
         pipeline: Pipeline,
-        collected_resources: Dict[str, Path],
+        collected_resources: List[str],
         exclude_keys: List[str],
     ):
         name, path = choose_resource(
@@ -157,38 +158,31 @@ def collect_resources(
             prompt_message,
         )
         if name not in collected_resources:
-            collected_resources[name] = path
+            collected_resources.append(name)
         return collected_resources
 
     return while_not_finished_mutateable(
         pipeline,
         collect_resource_prompt,
-        {},
+        [],
         "Use another resource? (y/n) ",
         exclude_keys,
     )
 
 
-def create_command(
-    pipeline: Pipeline,
-    input_keys: Optional[List[str]] = None,
-    output_keys: Optional[List[str]] = None,
-    context_keys: Optional[List[str]] = None,
-) -> str:
+def create_command(pipeline: Pipeline, keys: List[str]) -> str:
     print_header(pipeline)
-    input_keys = ["{{{{ inputs['{}'] }}}}".format(x) for x in input_keys or []]
-    output_keys = ["{{{{ outputs['{}'] }}}}".format(x) for x in output_keys or []]
-    context_keys = ["{{{{ context['{}'] }}}}".format(x) for x in context_keys or []]
+    keys_formatted = ["{{{{ {} }}}}".format(x) for x in keys or []]
     return prompt(
         "comand for this step:\n",
-        completer=FuzzyWordCompleter(
-            [*input_keys, *output_keys, *context_keys],
-        ),
+        completer=FuzzyWordCompleter(keys_formatted),
     )
 
 
 def add_context(pipeline: Pipeline) -> Pipeline:
-    def create_context_prompt(pipeline: Pipeline, context: Dict[str, str], *args):
+    def create_context_prompt(
+        pipeline: Pipeline, context: Dict[str, str], *args
+    ) -> Dict[str, str]:
         key = prompt(
             "Context key: ",
             validator=KeyValidator([x for x in context]),
@@ -213,15 +207,13 @@ def add_steps(pipeline: Pipeline):
             validator=UniqueValidator([x.name for x in pipeline.steps]),
         )
         inputs = collect_resources(pipeline, "input resource: ")
-        outputs = collect_resources(
-            pipeline, "output resource: ", exclude_keys=[x for x in inputs.keys()]
-        )
+        outputs = collect_resources(pipeline, "output resource: ", exclude_keys=inputs)
 
         command = create_command(
             pipeline,
-            [x for x in inputs.keys()],
-            [x for x in outputs.keys()],
-            [x for x in pipeline.context.keys()],
+            [x for x in inputs]
+            + [x for x in outputs]
+            + [x for x in pipeline.context.keys()],
         )
 
         pipeline.steps.append(

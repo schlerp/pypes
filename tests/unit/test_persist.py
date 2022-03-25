@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Callable
 
-from pypes.models import Pipeline
+from pypes.models.pipeline import Pipeline
 from pypes.persist import (
     deserialise_pipeline,
     read_pipeline,
